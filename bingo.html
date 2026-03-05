@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>F1 BINGO 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Exo+2:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:#03030c;min-height:100vh;}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.15}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:#04040e}
+::-webkit-scrollbar-thumb{background:#FF1801;border-radius:2px}
+input::placeholder{color:#151525;}
+input,button{font-family:'Exo 2',sans-serif;}
+.fade-in{animation:fadeIn 0.35s ease;}
+.pulse-dot{animation:pulse 1.5s infinite;}
+.ticker-wrap{animation:ticker 100s linear infinite;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+const {useState,useEffect,useCallback,useRef} = React;
+const F="'Russo One',sans-serif";
+const FB="'Exo 2',sans-serif";
+
+// DEADLINES (UTC) — Cairo = UTC+2
+const SEASON_DEADLINE    = new Date("2026-03-07T08:00:00Z"); // Fri 10AM Cairo
+const AUS_BINGO_DEADLINE = new Date("2026-03-08T00:00:00Z"); // 2AM Cairo Sun
+const AUS_RACE_START     = new Date("2026-03-08T04:00:00Z"); // ~race start
+
+const TEAMS=[
+  {n:"McLaren",     c:"#FF8000",s:"MCL",d:["Norris","Piastri"]},
+  {n:"Mercedes",    c:"#27F4D2",s:"MER",d:["Russell","Antonelli"]},
+  {n:"Red Bull",    c:"#3671C6",s:"RBR",d:["Verstappen","Hadjar"]},
+  {n:"Ferrari",     c:"#E8002D",s:"FER",d:["Hamilton","Leclerc"]},
+  {n:"Williams",    c:"#64C4FF",s:"WIL",d:["Sainz","Albon"]},
+  {n:"Aston Martin",c:"#358C75",s:"AMR",d:["Alonso","Stroll"]},
+  {n:"Racing Bulls",c:"#6692FF",s:"RB", d:["Lawson","Lindblad"]},
+  {n:"Haas",        c:"#B6BABD",s:"HAS",d:["Bearman","Ocon"]},
+  {n:"Alpine",      c:"#0093CC",s:"ALP",d:["Gasly","Colapinto"]},
+  {n:"Audi",        c:"#BB0000",s:"AUD",d:["Hulkenberg","Bortoleto"]},
+  {n:"Cadillac",    c:"#9EAAB8",s:"CAD",d:["Bottas","Perez"]},
+];
+
+const RACES=[
+  {r:1, n:"Australia",   city:"Melbourne",   icon:"🦘",flag:"🇦🇺",date:"Mar 6–8",  raceUTC:new Date("2026-03-08T04:00:00Z"),sprint:false},
+  {r:2, n:"China",       city:"Shanghai",    icon:"🐉",flag:"🇨🇳",date:"Mar 13–15",raceUTC:new Date("2026-03-15T07:00:00Z"),sprint:true},
+  {r:3, n:"Japan",       city:"Suzuka",      icon:"⛩️",flag:"🇯🇵",date:"Mar 27–29",raceUTC:new Date("2026-03-29T05:00:00Z"),sprint:false},
+  {r:4, n:"Bahrain",     city:"Sakhir",      icon:"🕌",flag:"🇧🇭",date:"Apr 10–12",raceUTC:new Date("2026-04-12T15:00:00Z"),sprint:false},
+  {r:5, n:"Saudi Arabia",city:"Jeddah",      icon:"🌴",flag:"🇸🇦",date:"Apr 17–19",raceUTC:new Date("2026-04-19T17:00:00Z"),sprint:false},
+  {r:6, n:"Miami",       city:"Miami",       icon:"🌊",flag:"🇺🇸",date:"May 1–3",  raceUTC:new Date("2026-05-03T19:30:00Z"),sprint:true},
+  {r:7, n:"Canada",      city:"Montréal",    icon:"🍁",flag:"🇨🇦",date:"May 22–24",raceUTC:new Date("2026-05-24T18:00:00Z"),sprint:true},
+  {r:8, n:"Monaco",      city:"Monte Carlo", icon:"🎰",flag:"🇲🇨",date:"Jun 5–7",  raceUTC:new Date("2026-06-07T13:00:00Z"),sprint:false},
+  {r:9, n:"Spain",       city:"Barcelona",   icon:"🐂",flag:"🇪🇸",date:"Jun 20–22",raceUTC:new Date("2026-06-22T13:00:00Z"),sprint:false},
+  {r:10,n:"Austria",     city:"Spielberg",   icon:"⛰️",flag:"🇦🇹",date:"Jun 27–29",raceUTC:new Date("2026-06-29T13:00:00Z"),sprint:false},
+  {r:11,n:"Britain",     city:"Silverstone", icon:"👑",flag:"🇬🇧",date:"Jul 4–6",  raceUTC:new Date("2026-07-06T14:00:00Z"),sprint:true},
+  {r:12,n:"Belgium",     city:"Spa",         icon:"🍺",flag:"🇧🇪",date:"Jul 25–27",raceUTC:new Date("2026-07-27T13:00:00Z"),sprint:false},
+  {r:13,n:"Hungary",     city:"Budapest",    icon:"🏰",flag:"🇭🇺",date:"Aug 1–3",  raceUTC:new Date("2026-08-03T13:00:00Z"),sprint:false},
+  {r:14,n:"Netherlands", city:"Zandvoort",   icon:"🌷",flag:"🇳🇱",date:"Aug 29–31",raceUTC:new Date("2026-08-31T13:00:00Z"),sprint:true},
+  {r:15,n:"Italy",       city:"Monza",       icon:"🏛️",flag:"🇮🇹",date:"Sep 5–7",  raceUTC:new Date("2026-09-07T13:00:00Z"),sprint:false},
+  {r:16,n:"Madrid",      city:"Madrid",      icon:"💃",flag:"🇪🇸",date:"Sep 11–13",raceUTC:new Date("2026-09-13T13:00:00Z"),sprint:false},
+  {r:17,n:"Azerbaijan",  city:"Baku",        icon:"🗼",flag:"🇦🇿",date:"Sep 19–21",raceUTC:new Date("2026-09-21T11:00:00Z"),sprint:false},
+  {r:18,n:"Singapore",   city:"Marina Bay",  icon:"🦁",flag:"🇸🇬",date:"Oct 3–5",  raceUTC:new Date("2026-10-05T12:00:00Z"),sprint:true},
+  {r:19,n:"USA",         city:"Austin",      icon:"🤠",flag:"🇺🇸",date:"Oct 17–19",raceUTC:new Date("2026-10-19T19:00:00Z"),sprint:false},
+  {r:20,n:"Mexico",      city:"Mexico City", icon:"🌵",flag:"🇲🇽",date:"Oct 24–26",raceUTC:new Date("2026-10-26T20:00:00Z"),sprint:false},
+  {r:21,n:"Brazil",      city:"São Paulo",   icon:"☀️",flag:"🇧🇷",date:"Nov 7–9",  raceUTC:new Date("2026-11-09T17:00:00Z"),sprint:false},
+  {r:22,n:"Las Vegas",   city:"Las Vegas",   icon:"🎲",flag:"🇺🇸",date:"Nov 20–22",raceUTC:new Date("2026-11-22T06:00:00Z"),sprint:false},
+  {r:23,n:"Qatar",       city:"Lusail",      icon:"🌙",flag:"🇶🇦",date:"Nov 28–30",raceUTC:new Date("2026-11-30T15:00:00Z"),sprint:false},
+  {r:24,n:"Abu Dhabi",   city:"Yas Marina",  icon:"🏙️",flag:"🇦🇪",date:"Dec 4–6",  raceUTC:new Date("2026-12-06T13:00:00Z"),sprint:false},
+];
+
+const SAMPLE=[
+  "Cadillac scores points on debut","Hamilton wins first Ferrari race",
+  "Antonelli crashes in qualifying","Active aero failure causes DNF",
+  "Norris back-to-back world champion","Verstappen rage quit on team radio",
+  "Newey Aston Martin shocks top 5","Safety car lap 1",
+  "Bottas podium with Cadillac","Melbourne rain ruins everyone strategy",
+  "Hamilton vs Leclerc team orders clash","Colapinto insane move goes viral",
+  "Hadjar beats Verstappen in qualifying","Perez returns and immediately crashes",
+  "Ferrari strategy error costs the win","Lindblad rookie mistake loses points",
+  "3+ teams hit active aero failures","Russell wins the championship",
+  "Piastri wins his home race","Paddock scandal hits F1 headlines",
+  "Someone retires on formation lap","VSC on lap 1",
+  "Pit stop fire during race","Two drivers collide in pit lane",
+];
+
+const ICONS=["🦁","🐉","🦊","🐺","🦅","🦋","🐯","🦄","🐻‍❄️","🦈","🐸","🦉","🐬","🐆","🦏"];
+
+function quickScore(b){
+  const t=b.toLowerCase();
+  if(["cadillac scor","bottas podium","perez podium","lindblad win","audi podium","formation lap retire","disqualif","bortoleto win","team principal fire","banned from","audi win"].some(k=>t.includes(k)))return 5;
+  const v4=["crash","retire","dnf","penalty","rain","safety car lap 1","blames team","failure","bleep","red flag","collision","brake fail","active aero fail","pit lane fire"];
+  if(v4.filter(k=>t.includes(k)).length>=2)return 5;
+  if(v4.some(k=>t.includes(k)))return 4;
+  if(["norris champion","mclaren 1-2","safety car deployed"].some(k=>t.includes(k)))return 1;
+  const v2=["mercedes win","russell win","norris win","verstappen win","hamilton win","podium","pole position","fastest lap","points finish"];
+  if(v2.filter(k=>t.includes(k)).length>=2)return 1;
+  if(v2.some(k=>t.includes(k)))return 2;
+  return 3;
+}
+const SC=s=>s===5?"#FF3366":s===4?"#FF8800":s===3?"#FFD700":s===2?"#00E5FF":"#88FF88";
+const SL=s=>s===5?"WILDCARD 🔥":s===4?"RISKY 💥":s===3?"BOLD 🎯":s===2?"LIKELY 📊":"SAFE ✅";
+
+function autoIcon(bingos){
+  const t=bingos.join(" ").toLowerCase();
+  if(t.includes("crash")||t.includes("dnf"))return"💥";
+  if(t.includes("rain")||t.includes("wet"))return"🌧️";
+  if(t.includes("hamilton")||t.includes("lewis"))return"⭐";
+  if(t.includes("verstappen"))return"⚡";
+  if(t.includes("ferrari")||t.includes("leclerc"))return"🐎";
+  if(t.includes("mclaren")||t.includes("norris"))return"🍊";
+  if(t.includes("cadillac")||t.includes("bottas"))return"🇺🇸";
+  if(t.includes("aston")||t.includes("newey"))return"🟢";
+  if(t.includes("scandal")||t.includes("drama"))return"🎭";
+  if(t.includes("safety car"))return"🚗";
+  return ICONS[Math.floor(Math.random()*ICONS.length)];
+}
+
+async function callClaude(prompt,search=false){
+  const body={model:"claude-sonnet-4-20250514",max_tokens:2000,messages:[{role:"user",content:prompt}]};
+  if(search)body.tools=[{type:"web_search_20250305",name:"web_search"}];
+  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const d=await r.json();
+  return(d.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
+}
+
+function parseJ(txt){
+  try{
+    const a=txt.indexOf("["),o=txt.indexOf("{");
+    const s=(a>=0&&(o<0||a<o))?a:o;
+    const z=txt.lastIndexOf("}")>txt.lastIndexOf("]")?txt.lastIndexOf("}"):txt.lastIndexOf("]");
+    if(s<0||z<0)return null;
+    return JSON.parse(txt.slice(s,z+1));
+  }catch{return null;}
+}
+
+function useCountdown(target){
+  const[t,setT]=useState({});
+  useEffect(()=>{
+    const calc=()=>{
+      const d=target-Date.now();
+      if(d<=0)return setT({expired:true});
+      setT({d:Math.floor(d/86400000),h:Math.floor(d%86400000/3600000),m:Math.floor(d%3600000/60000),s:Math.floor(d%60000/1000),expired:false});
+    };
+    calc();const id=setInterval(calc,1000);return()=>clearInterval(id);
+  },[target]);
+  return t;
+}
+
+function Countdown({target,label,col="#FF1801"}){
+  const t=useCountdown(target);
+  if(t.expired)return React.createElement("span",{style:{display:"flex",alignItems:"center",gap:6,padding:"5px 11px",background:"rgba(255,51,102,0.07)",border:"1px solid rgba(255,51,102,0.22)",borderRadius:7}},
+    React.createElement("span",{style:{width:5,height:5,borderRadius:"50%",background:"#FF3366",display:"inline-block",animation:"pulse 1s infinite"}}),
+    React.createElement("span",{style:{color:"#FF3366",fontFamily:FB,fontSize:9,fontWeight:700,letterSpacing:"1.5px",textTransform:"uppercase"}},"🔒 "+label+" CLOSED")
+  );
+  return React.createElement("span",{style:{display:"flex",alignItems:"center",gap:7,padding:"5px 11px",background:col+"09",border:"1px solid "+col+"25",borderRadius:7}},
+    React.createElement("span",{style:{width:5,height:5,borderRadius:"50%",background:col,display:"inline-block",animation:"pulse 1.5s infinite"}}),
+    React.createElement("span",{style:{color:"#666",fontFamily:FB,fontSize:8,textTransform:"uppercase",letterSpacing:"1px"}},label+":"),
+    ...[["d","D"],["h","H"],["m","M"],["s","S"]].map(([k,u])=>
+      React.createElement("span",{key:k,style:{display:"flex",alignItems:"baseline",gap:1}},
+        React.createElement("span",{style:{color:col,fontFamily:F,fontSize:16,lineHeight:1}},String(t[k]||0).padStart(2,"0")),
+        React.createElement("span",{style:{color:"#2a2a3a",fontFamily:FB,fontSize:7}},u)
+      )
+    )
+  );
+}
+
+const FALLBACK_NEWS=[
+  {team:"Mercedes",text:"Russell leads FP1 Melbourne — W17 active aero working perfectly",icon:"⭐",src:"FP1"},
+  {team:"Ferrari",text:"Hamilton P2 in FP1 — SF-26 looks rapid in Australian conditions",icon:"🔥",src:"FP1"},
+  {team:"McLaren",text:"Norris: We are not here to defend, we race to win every time",icon:"🍊",src:"Quote"},
+  {team:"Red Bull",text:"Verstappen puzzled by Ford power unit behaviour on high-speed corners",icon:"⚡",src:"Technical"},
+  {team:"Cadillac",text:"Bottas emotional in paddock: I waited a full year for this moment",icon:"🇺🇸",src:"Debut"},
+  {team:"Audi",text:"Hulkenberg P12 in FP1 — solid pace for a brand new works team",icon:"🔴",src:"Debut"},
+  {team:"Aston Martin",text:"Newey radical sidepod design draws gasps from rival engineers",icon:"🟢",src:"Technical"},
+  {team:"Alpine",text:"Colapinto near-miss with Hadjar in pit lane — stewards watching",icon:"💨",src:"Drama"},
+  {team:"Williams",text:"Sainz blistering tyres on long runs — engineers puzzled by deg",icon:"🔵",src:"Technical"},
+  {team:"Racing Bulls",text:"Rookie Lindblad impresses on debut weekend — clean, fast, zero errors",icon:"🦅",src:"Rookie"},
+  {team:"Red Bull",text:"Hadjar: Racing alongside Max is a dream I must earn every lap",icon:"🏎️",src:"Quote"},
+  {team:"Mercedes",text:"Antonelli stunning S2 in FP2 — half tenth quicker than Russell",icon:"💫",src:"FP2"},
+  {team:"Ferrari",text:"Hamilton and Leclerc adapting the car differently — fascinating battle",icon:"🐎",src:"Paddock"},
+  {team:"McLaren",text:"Piastri P3 in FP2 — home race motivation fully visible",icon:"🏠",src:"Quote"},
+];
+
+function NewsTicker({items}){
+  const all=[...items,...items];
+  return React.createElement("div",{style:{background:"rgba(0,0,0,0.95)",borderBottom:"2px solid #FF1801",overflow:"hidden",whiteSpace:"nowrap"}},
+    React.createElement("div",{className:"ticker-wrap",style:{display:"inline-flex",gap:70,padding:"8px 0"}},
+      all.map((it,i)=>{
+        const team=TEAMS.find(t=>t.n===it.team);
+        return React.createElement("span",{key:i,style:{fontFamily:FB,fontSize:10,fontWeight:600,letterSpacing:"0.3px",textTransform:"uppercase"}},
+          React.createElement("span",{style:{color:"#1a1a2a",marginRight:5}},"["+it.src+"]"),
+          React.createElement("span",{style:{marginRight:3}},it.icon+" "),
+          React.createElement("span",{style:{color:team?.c||"#aaa",marginRight:4}},it.team+" "),
+          React.createElement("span",{style:{color:"#bbb"}},it.text)
+        );
+      })
+    )
+  );
+}
+
+function TeamBar(){
+  return React.createElement("div",{style:{display:"flex",overflowX:"auto",background:"#030310",borderBottom:"1px solid #0d0d20",gap:0}},
+    TEAMS.map(t=>React.createElement("div",{key:t.n,
+      style:{flex:"0 0 auto",padding:"4px 9px",background:t.c+"0e",borderRight:"2px solid "+t.c,display:"flex",alignItems:"center",gap:4,cursor:"default",transition:"background 0.2s"},
+      onMouseEnter:e=>e.currentTarget.style.background=t.c+"28",
+      onMouseLeave:e=>e.currentTarget.style.background=t.c+"0e"},
+      React.createElement("div",{style:{width:5,height:5,borderRadius:"50%",background:t.c,boxShadow:"0 0 4px "+t.c}}),
+      React.createElement("div",null,
+        React.createElement("div",{style:{color:"#ccc",fontFamily:FB,fontSize:7,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase"}},t.s),
+        React.createElement("div",{style:{color:"#1c1c2c",fontFamily:FB,fontSize:6}},t.d.join(" · "))
+      )
+    ))
+  );
+}
+
+function RaceCalendar({selected,onSelect}){
+  const[hov,setHov]=useState(null);
+  const now=Date.now();
+  return React.createElement("div",{style:{maxWidth:1100,margin:"0 auto",padding:"18px 24px 6px"}},
+    React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:11}},
+      React.createElement("div",{style:{height:1,flex:1,background:"linear-gradient(90deg,#FF1801,transparent)"}}),
+      React.createElement("span",{style:{fontFamily:F,fontSize:9,color:"#FF1801",letterSpacing:"3px",textTransform:"uppercase"}},"2026 — 24 GRANDS PRIX"),
+      React.createElement("div",{style:{height:1,flex:1,background:"linear-gradient(270deg,#FF1801,transparent)"}})
+    ),
+    React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center",paddingBottom:10}},
+      RACES.map(race=>{
+        const bDL=new Date(race.raceUTC.getTime()-2*3600000);
+        const isOpen=now<bDL.getTime();
+        const isOver=now>race.raceUTC.getTime();
+        const isSel=selected?.r===race.r;
+        const isHov=hov===race.r;
+        const isFirst=race.r===1;
+        return React.createElement("div",{key:race.r,
+          style:{position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:2},
+          onMouseEnter:()=>setHov(race.r),onMouseLeave:()=>setHov(null)},
+          React.createElement("button",{
+            onClick:()=>onSelect(isSel?null:race),
+            style:{width:48,height:48,borderRadius:"50%",
+              border:isSel?"2px solid #FF1801":isFirst&&isOpen?"2px solid rgba(255,24,1,0.35)":"2px solid rgba(255,255,255,0.05)",
+              background:isSel?"linear-gradient(135deg,#FF1801,#FF5500)":isFirst&&isOpen?"rgba(255,24,1,0.1)":isOver?"rgba(255,255,255,0.03)":"rgba(255,255,255,0.02)",
+              cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,
+              transition:"all 0.2s",
+              transform:isHov?"scale(1.12)":isSel?"scale(1.06)":"scale(1)",
+              boxShadow:isSel?"0 0 18px rgba(255,24,1,0.45)":isHov&&isFirst?"0 0 10px rgba(255,24,1,0.2)":"none",
+              position:"relative"}},
+            React.createElement("span",{style:{fontSize:15,lineHeight:1}},race.icon),
+            React.createElement("span",{style:{fontSize:6,color:isSel?"#fff":isFirst&&isOpen?"#FF1801":"#1c1c2c",fontFamily:FB,fontWeight:700}},"R"+race.r),
+            race.sprint&&React.createElement("div",{style:{position:"absolute",top:-2,right:-2,width:7,height:7,borderRadius:"50%",background:"#FFD700",border:"1px solid #000",boxShadow:"0 0 3px #FFD700"}}),
+            isOver&&React.createElement("div",{style:{position:"absolute",bottom:-1,right:-1,width:7,height:7,borderRadius:"50%",background:"#55FF55",border:"1px solid #000"}}),
+            isHov&&React.createElement("div",{style:{position:"absolute",bottom:"calc(100% + 7px)",left:"50%",transform:"translateX(-50%)",background:"rgba(6,3,16,0.97)",border:"1px solid "+(isFirst&&isOpen?"rgba(255,24,1,0.28)":"rgba(255,255,255,0.05)"),borderRadius:7,padding:"7px 10px",whiteSpace:"nowrap",zIndex:400,boxShadow:"0 8px 22px rgba(0,0,0,0.9)",pointerEvents:"none"}},
+              React.createElement("div",{style:{fontFamily:F,fontSize:10,color:isFirst&&isOpen?"#FF1801":"#666"}},race.flag+" "+race.n.toUpperCase()),
+              React.createElement("div",{style:{fontFamily:FB,fontSize:8,color:"#555",marginTop:1}},race.city+" · "+race.date),
+              race.sprint&&React.createElement("div",{style:{fontFamily:FB,fontSize:7,color:"#FFD700",marginTop:1}},"⚡ Sprint Weekend"),
+              React.createElement("div",{style:{fontFamily:FB,fontSize:8,marginTop:1,color:isOver?"#55FF55":isOpen?"#88FF88":"#FF3366"}},isOver?"✅ Complete":isOpen?"🟢 Bingos Open":"🔒 Closed"),
+              React.createElement("div",{style:{position:"absolute",bottom:-4,left:"50%",transform:"translateX(-50%) rotate(45deg)",width:6,height:6,background:"rgba(6,3,16,0.97)",border:"1px solid rgba(255,24,1,0.12)",borderTop:"none",borderLeft:"none"}})
+            )
+          ),
+          React.createElement("div",{style:{textAlign:"center"}},
+            React.createElement("div",{style:{fontFamily:FB,fontSize:6,fontWeight:700,color:isSel?"#FF1801":isFirst&&isOpen?"#777":"#161622",textTransform:"uppercase",maxWidth:50,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},race.n),
+            React.createElement("div",{style:{fontFamily:FB,fontSize:5,color:"#131320"}},race.date)
+          )
+        );
+      })
+    ),
+    React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"center",gap:10,paddingBottom:2}},
+      [["#FFD700","Sprint"],["#FF1801","Open"],["#55FF55","Done"]].map(([c,l])=>
+        React.createElement("div",{key:l,style:{display:"flex",alignItems:"center",gap:3}},
+          React.createElement("div",{style:{width:5,height:5,borderRadius:"50%",background:c}}),
+          React.createElement("span",{style:{color:"#252535",fontFamily:FB,fontSize:7}},l)
+        )
+      )
+    )
+  );
+}
+
+function RacePanel({race,onClose}){
+  const bDL=new Date(race.raceUTC.getTime()-2*3600000);
+  const now=Date.now();
+  const isOpen=now<bDL.getTime();
+  const isOver=now>race.raceUTC.getTime();
+  const[name,setName]=useState("");
+  const[bs,setBs]=useState(["","",""]);
+  const[entries,setEntries]=useState([]);
+  const[submitting,setSubmitting]=useState(false);
+  const[verifying,setVerifying]=useState(null);
+  const preS=bs.map(b=>b.trim()?quickScore(b):null);
+
+  const submit=async()=>{
+    if(!name.trim()||bs.filter(b=>b.trim()).length<3)return;
+    setSubmitting(true);
+    const prompt=`You are the world's most knowledgeable F1 expert, March 2026, ${race.n} Grand Prix weekend.
+
+2026 REAL CONTEXT: Norris defending champion. Mercedes W17 fastest Bahrain testing. Hamilton+Ferrari fast Barcelona. New active aero replaces DRS. 50/50 electric/ICE. Cadillac brand new (Bottas+Perez returning after year out). Audi brand new works team. Newey's first Aston Martin. Hadjar is Verstappen's teammate. Antonelli year 2 at Mercedes.
+
+Player "${name}" submits 3 race bingos for ${race.n} GP (${race.date}):
+${bs.map((b,i)=>`${i+1}. "${b}"`).join('\n')}
+
+Score each 1-5 specific to this race at ${race.n}: 5=wildcard/near-impossible, 4=chaos/unlikely, 3=uncertain, 2=likely, 1=near-certain. Give sharp 1-sentence reason referencing REAL 2026 facts.
+JSON only: {"results":[{"bingo":"...","score":3,"reason":"real 2026 reason"}]}`;
+    try{
+      const txt=await callClaude(prompt,false);
+      const p=parseJ(txt);
+      if(p?.results){
+        setEntries(prev=>[...prev,{id:Date.now(),name:name.trim(),icon:autoIcon(bs),bingos:[...bs],aiScores:p.results.map(r=>r.score),reasons:p.results.map(r=>r.reason),verified:false,vScores:null}]);
+        setName("");setBs(["","",""]);
+      }else throw new Error();
+    }catch{
+      setEntries(prev=>[...prev,{id:Date.now(),name:name.trim(),icon:autoIcon(bs),bingos:[...bs],aiScores:bs.map(b=>quickScore(b)),reasons:["Auto-scored","Auto-scored","Auto-scored"],verified:false,vScores:null}]);
+      setName("");setBs(["","",""]);
+    }
+    setSubmitting(false);
+  };
+
+  const verify=async(entry)=>{
+    setVerifying(entry.id);
+    const prompt=`Verify F1 bingos after the actual 2026 ${race.n} Grand Prix. Search the web for real race results and check each prediction.
+
+Player "${entry.name}" predicted:
+${entry.bingos.map((b,i)=>`${i+1}. "${b}" (potential: ${entry.aiScores[i]} pts)`).join('\n')}
+
+Search for ACTUAL ${race.n} 2026 results. For each: did it happen? If yes → full score. If no → 0. 1-sentence fact from real race.
+JSON only: {"verified":[{"bingo":"...","happened":true,"earned":4,"fact":"What actually happened"}]}`;
+    try{
+      const txt=await callClaude(prompt,true);
+      const p=parseJ(txt);
+      if(p?.verified)setEntries(prev=>prev.map(e=>e.id===entry.id?{...e,verified:true,vScores:p.verified}:e));
+    }catch{alert("Verification failed — try again");}
+    setVerifying(null);
+  };
+
+  return React.createElement("div",{className:"fade-in",style:{maxWidth:1100,margin:"0 auto",padding:"0 24px 14px"}},
+    React.createElement("div",{style:{background:"linear-gradient(135deg,rgba(255,24,1,0.03),rgba(0,0,0,0.5))",border:"1px solid rgba(255,24,1,0.16)",borderRadius:11,overflow:"hidden"}},
+      React.createElement("div",{style:{padding:"11px 16px",borderBottom:"1px solid rgba(255,255,255,0.035)",background:"rgba(255,24,1,0.035)",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+        React.createElement("div",null,
+          React.createElement("div",{style:{fontFamily:F,fontSize:14,color:"#FF1801",letterSpacing:"0.5px"}},race.flag+" "+race.n.toUpperCase()+" GP "+(race.sprint?"⚡":"")),
+          React.createElement("div",{style:{fontFamily:FB,fontSize:8,color:"#444",marginTop:2,letterSpacing:"1px",textTransform:"uppercase"}},
+            isOver?"✅ RACE COMPLETE — VERIFY BINGOS":isOpen?"🟢 OPEN — DEADLINE: 2AM CAIRO ON RACE DAY":"🔒 BINGO REGISTRATION CLOSED")
+        ),
+        React.createElement("button",{onClick:onClose,style:{background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:5,color:"#666",fontFamily:FB,fontSize:10,padding:"3px 9px",cursor:"pointer"}},"✕ CLOSE")
+      ),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr"}},
+        React.createElement("div",{style:{padding:"13px 15px",borderRight:"1px solid rgba(255,255,255,0.03)"}},
+          isOpen?React.createElement("div",null,
+            React.createElement("div",{style:{fontFamily:FB,fontSize:7,color:"#444",letterSpacing:"2px",textTransform:"uppercase",marginBottom:5}},"YOUR NAME"),
+            React.createElement("input",{value:name,onChange:e=>setName(e.target.value),placeholder:"Your handle...",style:{width:"100%",padding:"6px 8px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:5,color:"#fff",fontFamily:FB,fontSize:12,outline:"none",marginBottom:9,boxSizing:"border-box"}}),
+            React.createElement("div",{style:{fontFamily:FB,fontSize:7,color:"#444",letterSpacing:"2px",textTransform:"uppercase",marginBottom:5}},"3 RACE BINGOS — AI SCORED ON SUBMIT"),
+            ...bs.map((b,i)=>
+              React.createElement("div",{key:i,style:{display:"flex",gap:5,alignItems:"center",marginBottom:5}},
+                React.createElement("div",{style:{minWidth:19,height:19,borderRadius:3,background:preS[i]?SC(preS[i])+"16":"rgba(255,255,255,0.025)",border:"1px solid "+(preS[i]?SC(preS[i])+"40":"transparent"),display:"flex",alignItems:"center",justifyContent:"center",color:preS[i]?SC(preS[i]):"#1a1a28",fontFamily:F,fontSize:8,flexShrink:0,transition:"all 0.2s"}},preS[i]||i+1),
+                React.createElement("input",{value:b,onChange:e=>{const n=[...bs];n[i]=e.target.value;setBs(n);},placeholder:"Bingo "+(i+1)+"...",style:{flex:1,padding:"5px 7px",background:"rgba(255,255,255,0.025)",border:"1px solid "+(preS[i]?SC(preS[i])+"25":"rgba(255,255,255,0.055)"),borderRadius:5,color:"#ddd",fontFamily:FB,fontSize:11,outline:"none"}})
+              )
+            ),
+            React.createElement("button",{onClick:submit,disabled:submitting||!name.trim()||bs.filter(b=>b.trim()).length<3,
+              style:{width:"100%",marginTop:7,padding:"8px",background:!submitting&&name.trim()&&bs.filter(b=>b.trim()).length>=3?"linear-gradient(135deg,#FF1801,#FF5500)":"rgba(255,255,255,0.025)",border:"none",borderRadius:6,color:!submitting&&name.trim()&&bs.filter(b=>b.trim()).length>=3?"#fff":"#1c1c2c",fontFamily:F,fontSize:10,letterSpacing:"1px",textTransform:"uppercase",cursor:"pointer"}},
+              submitting?"🤖 AI SCORING...":"🏁 SUBMIT & AI SCORE"),
+            submitting&&React.createElement("div",{style:{color:"#FF8800",fontFamily:FB,fontSize:8,textAlign:"center",marginTop:4,animation:"pulse 1s infinite"}},"Claude scoring against real 2026 data...")
+          ):React.createElement("div",{style:{padding:"28px 0",textAlign:"center"}},
+            React.createElement("div",{style:{fontSize:28}},"🔒"),
+            React.createElement("div",{style:{color:"#333",fontFamily:FB,fontSize:11,marginTop:7}},isOver?"Verify results on the right →":"Registration closed")
+          )
+        ),
+        React.createElement("div",{style:{padding:"13px 15px"}},
+          React.createElement("div",{style:{fontFamily:FB,fontSize:7,color:"#444",letterSpacing:"2px",textTransform:"uppercase",marginBottom:7}},"ENTRIES ("+entries.length+")"+(isOver?" · VERIFY AFTER RACE":"")),
+          entries.length===0&&React.createElement("div",{style:{color:"#151525",fontFamily:FB,fontSize:11,padding:"18px 0",textAlign:"center"}},"No entries yet"),
+          React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6,maxHeight:310,overflowY:"auto"}},
+            entries.map(entry=>{
+              const pts=entry.verified?entry.vScores.reduce((a,v)=>a+(v.happened?v.earned:0),0):entry.aiScores.reduce((a,c)=>a+c,0);
+              return React.createElement("div",{key:entry.id,style:{padding:"9px 10px",background:"rgba(255,255,255,0.02)",border:"1px solid "+(entry.verified?"rgba(85,255,85,0.16)":"rgba(255,255,255,0.045)"),borderRadius:7}},
+                React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}},
+                  React.createElement("div",{style:{display:"flex",alignItems:"center",gap:5}},
+                    React.createElement("span",{style:{fontSize:13}},entry.icon),
+                    React.createElement("span",{style:{color:"#eee",fontFamily:FB,fontSize:12,fontWeight:600}},entry.name),
+                    entry.verified&&React.createElement("span",{style:{color:"#55FF55",fontFamily:FB,fontSize:7,letterSpacing:"1px"}},"✅ VERIFIED")
+                  ),
+                  React.createElement("span",{style:{color:entry.verified?"#55FF55":"#FF1801",fontFamily:F,fontSize:11}},pts,React.createElement("span",{style:{color:"#1a1a2a",fontSize:8}},"/15"))
+                ),
+                entry.bingos.map((b,bi)=>{
+                  const sc=entry.aiScores[bi];
+                  const vr=entry.vScores?.[bi];
+                  return React.createElement("div",{key:bi,style:{display:"flex",gap:5,alignItems:"flex-start",padding:"2px 0",borderTop:bi>0?"1px solid rgba(255,255,255,0.025)":"none"}},
+                    React.createElement("div",{style:{minWidth:17,height:17,borderRadius:3,background:vr?vr.happened?"rgba(85,255,85,0.1)":"rgba(255,51,102,0.1)":SC(sc)+"14",border:"1px solid "+(vr?vr.happened?"rgba(85,255,85,0.3)":"rgba(255,51,102,0.3)":SC(sc)+"30"),display:"flex",alignItems:"center",justifyContent:"center",color:vr?vr.happened?"#55FF55":"#FF3366":SC(sc),fontFamily:F,fontSize:7,flexShrink:0}},vr?vr.happened?vr.earned:"✗":sc),
+                    React.createElement("div",null,
+                      React.createElement("div",{style:{color:"#bbb",fontFamily:FB,fontSize:10}},b),
+                      entry.reasons?.[bi]&&!entry.verified&&React.createElement("div",{style:{color:"#333",fontFamily:FB,fontSize:8,fontStyle:"italic",marginTop:1}},entry.reasons[bi]),
+                      vr&&React.createElement("div",{style:{color:vr.happened?"#55FF55":"#FF3366",fontFamily:FB,fontSize:8,fontStyle:"italic",marginTop:1}},vr.fact)
+                    )
+                  );
+                }),
+                isOver&&!entry.verified&&React.createElement("button",{onClick:()=>verify(entry),disabled:verifying===entry.id,
+                  style:{width:"100%",marginTop:4,padding:"3px",background:"rgba(85,255,85,0.05)",border:"1px solid rgba(85,255,85,0.15)",borderRadius:4,color:"#55FF55",fontFamily:FB,fontSize:7,fontWeight:700,cursor:"pointer",letterSpacing:"1px",textTransform:"uppercase"}},
+                  verifying===entry.id?"🔍 SEARCHING RESULTS...":"🔍 VERIFY WITH AI + WEB SEARCH")
+              );
+            })
+          )
+        )
+      )
+    )
+  );
+}
+
+function UserCard({user,rank,onEval}){
+  const[hov,setHov]=useState(false);
+  const scores=user.bingos.map((b,i)=>user.aiScores?.[i]??quickScore(b));
+  const total=scores.reduce((a,b)=>a+b,0);
+  const rankC=["#FFD700","#C0C0C0","#CD7F32","#555","#333"][rank]||"#222";
+  return React.createElement("div",{
+    style:{background:hov?"linear-gradient(135deg,rgba(255,24,1,0.055),rgba(255,255,255,0.015))":"linear-gradient(135deg,rgba(255,255,255,0.018),rgba(255,255,255,0.008))",
+      border:"1px solid "+(hov?"#FF1801":"rgba(255,255,255,0.055)"),borderRadius:10,overflow:"hidden",cursor:"pointer",
+      transition:"all 0.25s",transform:hov?"translateY(-3px)":"none",
+      boxShadow:hov?"0 10px 30px rgba(255,24,1,0.09)":"0 2px 9px rgba(0,0,0,0.4)",position:"relative"},
+    onMouseEnter:()=>setHov(true),onMouseLeave:()=>setHov(false)},
+    React.createElement("div",{style:{position:"absolute",top:9,right:9,width:20,height:20,borderRadius:"50%",background:rankC,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,fontSize:7,color:rank===0?"#000":"#fff",boxShadow:"0 0 7px "+rankC+"70"}},"#"+(rank+1)),
+    React.createElement("div",{style:{padding:"12px 13px 6px"}},
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:7}},
+        React.createElement("div",{style:{width:38,height:38,borderRadius:7,background:"rgba(255,255,255,0.035)",border:"2px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}},user.icon),
+        React.createElement("div",null,
+          React.createElement("div",{style:{color:"#fff",fontFamily:F,fontSize:13}},user.name),
+          user.strategy&&React.createElement("div",{style:{color:"#FF8800",fontFamily:FB,fontSize:8,marginTop:1}},user.strategy),
+          React.createElement("div",{style:{color:"#1c1c2c",fontFamily:FB,fontSize:7,letterSpacing:"1px",textTransform:"uppercase"}},(user.aiScores?"🤖 AI SCORED ":"")+"10 BINGOS")
+        )
+      ),
+      React.createElement("div",{style:{marginBottom:5}},
+        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:2}},
+          React.createElement("span",{style:{color:"#252535",fontFamily:FB,fontSize:7,letterSpacing:"1px",textTransform:"uppercase"}},"POTENTIAL"),
+          React.createElement("span",{style:{color:"#FF1801",fontFamily:F,fontSize:12}},total,React.createElement("span",{style:{color:"#151522",fontSize:8}},"/50"))
+        ),
+        React.createElement("div",{style:{height:2,background:"rgba(255,255,255,0.035)",borderRadius:1,overflow:"hidden"}},
+          React.createElement("div",{style:{height:"100%",width:`${(total/50)*100}%`,background:"linear-gradient(90deg,#FF1801,#FF8800)",boxShadow:"0 0 6px rgba(255,24,1,0.25)",transition:"width 0.5s"}})
+        )
+      )
+    ),
+    React.createElement("div",{style:{padding:"0 13px 7px",display:"flex",gap:2,flexWrap:"wrap"}},
+      scores.map((s,i)=>React.createElement("div",{key:i,style:{padding:"1px 4px",borderRadius:2,background:SC(s)+"10",border:"1px solid "+SC(s)+"22",color:SC(s),fontFamily:FB,fontSize:6,fontWeight:700}},s+"★"))
+    ),
+    React.createElement("div",{style:{maxHeight:hov?"600px":"0",overflow:"hidden",transition:"max-height 0.4s ease"}},
+      React.createElement("div",{style:{borderTop:"1px solid rgba(255,255,255,0.035)",padding:"7px 13px 11px"}},
+        React.createElement("div",{style:{color:"#FF1801",fontFamily:FB,fontSize:7,letterSpacing:"2px",textTransform:"uppercase",marginBottom:5,fontWeight:700}},"▼ ALL 10 BINGOS"),
+        user.bingos.map((b,i)=>{
+          const s=scores[i];
+          return React.createElement("div",{key:i,style:{display:"flex",alignItems:"flex-start",gap:5,padding:"3px 0",borderBottom:i<9?"1px solid rgba(255,255,255,0.02)":"none"}},
+            React.createElement("div",{style:{minWidth:18,height:18,borderRadius:3,background:SC(s)+"12",border:"1px solid "+SC(s)+"25",display:"flex",alignItems:"center",justifyContent:"center",color:SC(s),fontFamily:F,fontSize:8,flexShrink:0}},s),
+            React.createElement("div",null,
+              React.createElement("div",{style:{color:"#ccc",fontFamily:FB,fontSize:10,lineHeight:1.3}},b),
+              user.reasons?.[i]&&React.createElement("div",{style:{color:"#333",fontFamily:FB,fontSize:7,fontStyle:"italic",marginTop:1}},user.reasons[i]),
+              React.createElement("div",{style:{color:SC(s),fontFamily:FB,fontSize:6,opacity:0.65,marginTop:1}},SL(s))
+            )
+          );
+        }),
+        user.insight&&React.createElement("div",{style:{color:"#444",fontFamily:FB,fontSize:9,fontStyle:"italic",marginTop:7,padding:"5px 7px",background:"rgba(255,136,0,0.03)",borderRadius:4,border:"1px solid rgba(255,136,0,0.08)"}},user.insight),
+        React.createElement("button",{
+          onClick:e=>{e.stopPropagation();onEval(user);},
+          style:{width:"100%",marginTop:6,padding:"4px",background:"rgba(255,136,0,0.05)",border:"1px solid rgba(255,136,0,0.12)",borderRadius:4,color:"#FF8800",fontFamily:FB,fontSize:7,fontWeight:700,cursor:"pointer",letterSpacing:"1px",textTransform:"uppercase"}},
+          "🤖 DEEP AI EVALUATION — 2026 CONTEXT")
+      )
+    )
+  );
+}
+
+function SeasonModal({onClose,onRegister}){
+  const[name,setName]=useState("");
+  const[bs,setBs]=useState(Array(10).fill(""));
+  const[submitting,setSubmitting]=useState(false);
+  const t=useCountdown(SEASON_DEADLINE);
+  const isOpen=!t.expired;
+  const preS=bs.map(b=>b.trim()?quickScore(b):null);
+  const submit=async()=>{
+    if(!name.trim()||bs.filter(b=>b.trim()).length<10||!isOpen)return;
+    setSubmitting(true);
+    const prompt=`You are the world's best F1 analyst for 2026. Score these 10 season-long bingos.
+
+REAL 2026 PRE-SEASON: Norris won 2025 by 2pts. McLaren back-to-back constructors. Mercedes W17 fastest Bahrain testing. Hamilton+Ferrari fast Barcelona private test. New regs: active aero (no DRS), 50/50 electric/ICE, new power units. Cadillac brand new — Bottas+Perez returning after year out. Zero data. Audi brand new works team. Newey first Aston Martin. Hadjar replaces Perez at Red Bull. Antonelli year 2 at Mercedes. Alpine: Mercedes engines. Ford/Red Bull. Honda/Aston Martin.
+
+Score 1-5: 5=wildcard/impossible, 4=unlikely/chaos, 3=uncertain, 2=likely, 1=near-certain. Be SPECIFIC — reference real testing data, driver moves, technical facts. Sharp reasons.
+
+Bingos for "${name}":
+${bs.map((b,i)=>`${i+1}. ${b}`).join('\n')}
+
+JSON only:
+{"evaluations":[{"bingo":"...","score":3,"reason":"sharp specific 2026 reason"}],"strategy":"The Chaos Merchant","insight":"one sharp line about their prediction style"}`;
+    try{
+      const txt=await callClaude(prompt,false);
+      const p=parseJ(txt);
+      if(p?.evaluations){
+        onRegister({name:name.trim(),bingos:[...bs],icon:autoIcon(bs),id:Date.now(),aiScores:p.evaluations.map(e=>e.score),reasons:p.evaluations.map(e=>e.reason),strategy:p.strategy,insight:p.insight});
+        onClose();return;
+      }
+    }catch{}
+    onRegister({name:name.trim(),bingos:[...bs],icon:autoIcon(bs),id:Date.now(),aiScores:null});
+    onClose();setSubmitting(false);
+  };
+  return React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.93)",backdropFilter:"blur(10px)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16},onClick:e=>e.target===e.currentTarget&&onClose()},
+    React.createElement("div",{style:{background:"linear-gradient(135deg,#0a0014,#040f1c)",border:"1px solid rgba(255,24,1,0.22)",borderRadius:13,width:"100%",maxWidth:490,maxHeight:"90vh",overflow:"auto",boxShadow:"0 30px 80px rgba(255,24,1,0.13)"}},
+      React.createElement("div",{style:{padding:"13px 18px 10px",borderBottom:"1px solid rgba(255,255,255,0.04)",background:"rgba(255,24,1,0.03)"}},
+        React.createElement("div",{style:{fontFamily:F,fontSize:18,color:"#FF1801",letterSpacing:"1px"}},"🏁 SEASON BINGOS 2026"),
+        isOpen?React.createElement("div",{style:{marginTop:5}},React.createElement(Countdown,{target:SEASON_DEADLINE,label:"CLOSES",col:"#FF1801"}))
+        :React.createElement("div",{style:{color:"#FF3366",fontFamily:FB,fontSize:9,marginTop:5,padding:"4px 8px",background:"rgba(255,51,102,0.07)",borderRadius:4,border:"1px solid rgba(255,51,102,0.18)"}},"🔒 CLOSED — Friday 10AM Cairo time")
+      ),
+      !isOpen?React.createElement("div",{style:{padding:"32px 18px",textAlign:"center"}},
+        React.createElement("div",{style:{fontSize:32}},"🔒"),
+        React.createElement("div",{style:{color:"#444",fontFamily:FB,fontSize:12,marginTop:9}},"Season registration closed. Register race bingos via the calendar."),
+        React.createElement("button",{onClick:onClose,style:{marginTop:14,padding:"7px 18px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:6,color:"#777",fontFamily:FB,cursor:"pointer",fontSize:10}},"CLOSE")
+      ):React.createElement("div",{style:{padding:"11px 18px 16px"}},
+        React.createElement("div",{style:{marginBottom:9}},
+          React.createElement("label",{style:{display:"block",color:"#3a3a4a",fontFamily:FB,fontSize:7,letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}},"YOUR HANDLE"),
+          React.createElement("input",{value:name,onChange:e=>setName(e.target.value),placeholder:"e.g. ChaosAgent_2026",style:{width:"100%",padding:"7px 9px",background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:5,color:"#fff",fontFamily:FB,fontSize:13,outline:"none",boxSizing:"border-box"}})
+        ),
+        React.createElement("div",{style:{marginBottom:8}},
+          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}},
+            React.createElement("label",{style:{color:"#3a3a4a",fontFamily:FB,fontSize:7,letterSpacing:"2px",textTransform:"uppercase"}},"10 SEASON BINGOS — AI SCORES INSTANTLY"),
+            React.createElement("button",{onClick:()=>setBs([...SAMPLE].sort(()=>Math.random()-0.5).slice(0,10)),style:{padding:"2px 6px",background:"rgba(255,136,0,0.07)",border:"1px solid rgba(255,136,0,0.18)",borderRadius:3,color:"#FF8800",fontFamily:FB,fontSize:7,cursor:"pointer",letterSpacing:"1px"}},"🎲 RANDOM")
+          ),
+          React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:3}},
+            bs.map((b,i)=>{
+              const sc=preS[i];
+              return React.createElement("div",{key:i,style:{display:"flex",gap:4,alignItems:"center"}},
+                React.createElement("div",{style:{minWidth:16,height:16,borderRadius:3,background:sc?SC(sc)+"16":"rgba(255,255,255,0.025)",border:"1px solid "+(sc?SC(sc)+"38":"transparent"),display:"flex",alignItems:"center",justifyContent:"center",color:sc?SC(sc):"#151525",fontFamily:F,fontSize:7,transition:"all 0.2s"}},sc||i+1),
+                React.createElement("input",{value:b,onChange:e=>{const n=[...bs];n[i]=e.target.value;setBs(n);},placeholder:"Bingo #"+(i+1)+"...",style:{flex:1,padding:"4px 7px",background:"rgba(255,255,255,0.02)",border:"1px solid "+(sc?SC(sc)+"22":"rgba(255,255,255,0.048)"),borderRadius:4,color:"#ccc",fontFamily:FB,fontSize:11,outline:"none"}})
+              );
+            })
+          )
+        ),
+        bs.filter(b=>b.trim()).length===10&&React.createElement("div",{style:{padding:"6px 10px",background:"rgba(255,24,1,0.04)",border:"1px solid rgba(255,24,1,0.1)",borderRadius:5,marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          React.createElement("span",{style:{color:"#666",fontFamily:FB,fontSize:8}},"EST. POTENTIAL (pre-AI)"),
+          React.createElement("span",{style:{color:"#FF1801",fontFamily:F,fontSize:14}},bs.map(b=>quickScore(b)).reduce((a,c)=>a+c,0),React.createElement("span",{style:{color:"#151522",fontSize:8}},"/50"))
+        ),
+        React.createElement("button",{onClick:submit,disabled:submitting||!name.trim()||bs.filter(b=>b.trim()).length<10,
+          style:{width:"100%",padding:9,background:!submitting&&name.trim()&&bs.filter(b=>b.trim()).length>=10?"linear-gradient(135deg,#FF1801,#FF5500)":"rgba(255,255,255,0.025)",border:"none",borderRadius:7,color:!submitting&&name.trim()&&bs.filter(b=>b.trim()).length>=10?"#fff":"#151522",fontFamily:F,fontSize:11,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer"}},
+          submitting?"🤖 CLAUDE SCORING...":"🏁 SUBMIT — AI SCORES INSTANTLY"),
+        submitting&&React.createElement("div",{style:{color:"#FF8800",fontFamily:FB,fontSize:8,textAlign:"center",marginTop:4,animation:"pulse 1s infinite"}},"Claude analysing against real 2026 pre-season data...")
+      )
+    )
+  );
+}
+
+function DeepEvalModal({user,onClose}){
+  const[loading,setLoading]=useState(true);
+  const[result,setResult]=useState(null);
+  useEffect(()=>{
+    (async()=>{
+      const prompt=`You are the world's most respected F1 analyst. Evaluate ${user.name}'s 2026 season bingos with brutal precision.
+
+REAL 2026 FACTS: Norris defending champ 2pts margin. McLaren back-to-back constructors. Mercedes W17 fastest Bahrain testing. Hamilton+Ferrari very fast Barcelona. New regs: active aero, no DRS, 50/50 electric. Cadillac brand new — Bottas+Perez returning after year out. Audi brand new works team. Newey first Aston Martin. Hadjar alongside Verstappen. Antonelli year 2. Alpine: Mercedes engines. Ford/Red Bull. Honda/Aston Martin.
+
+Score each bingo 1-5 with SHARP, WITTY, FACTUALLY-GROUNDED 2026 reason. Reference real Bahrain lap times, driver history, technical specifics. Give them a hilarious paddock nickname.
+
+JSON only:
+{"bingos":[{"text":"...","score":4,"comment":"real 2026 reason — witty, max 15 words"}],"overall_rating":7,"strategy_name":"The Paddock Chaos Merchant","summary":"one brutal/praising sentence"}
+
+Bingos:
+${user.bingos.map((b,i)=>`${i+1}. ${b}`).join('\n')}`;
+      try{
+        const txt=await callClaude(prompt,false);
+        setResult(parseJ(txt)||{error:"Could not parse response"});
+      }catch{setResult({error:"Evaluation failed — try again"});}
+      setLoading(false);
+    })();
+  },[user]);
+  return React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.93)",backdropFilter:"blur(10px)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16},onClick:e=>e.target===e.currentTarget&&onClose()},
+    React.createElement("div",{style:{background:"linear-gradient(135deg,#0d0d18,#08121e)",border:"1px solid rgba(255,136,0,0.22)",borderRadius:13,width:"100%",maxWidth:480,maxHeight:"88vh",overflow:"auto",boxShadow:"0 30px 80px rgba(255,136,0,0.1)",padding:18}},
+      React.createElement("div",{style:{fontFamily:F,fontSize:14,color:"#FF8800",letterSpacing:"1px",textTransform:"uppercase",marginBottom:3}},"🤖 DEEP AI EVALUATION"),
+      React.createElement("div",{style:{color:"#252535",fontFamily:FB,fontSize:9,marginBottom:11}},user.icon+" "+user.name+" · Real 2026 pre-season data"),
+      loading&&React.createElement("div",{style:{textAlign:"center",padding:"32px 0"}},
+        React.createElement("div",{style:{color:"#FF8800",fontFamily:F,fontSize:10,letterSpacing:"2px",animation:"pulse 1s infinite"}},"CLAUDE IS THINKING..."),
+        React.createElement("div",{style:{color:"#151525",fontSize:8,marginTop:5,fontFamily:FB}},"Referencing Bahrain testing times, driver history & technical regs...")
+      ),
+      result&&!result.error&&React.createElement("div",null,
+        React.createElement("div",{style:{padding:"9px 11px",background:"rgba(255,136,0,0.05)",border:"1px solid rgba(255,136,0,0.13)",borderRadius:7,marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          React.createElement("div",null,
+            React.createElement("div",{style:{color:"#FF8800",fontFamily:F,fontSize:12}},result.strategy_name),
+            React.createElement("div",{style:{color:"#777",fontFamily:FB,fontSize:9,marginTop:2}},result.summary)
+          ),
+          React.createElement("div",{style:{width:37,height:37,borderRadius:7,background:"rgba(255,136,0,0.07)",border:"2px solid rgba(255,136,0,0.18)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}},
+            React.createElement("div",{style:{color:"#FF8800",fontFamily:F,fontSize:15,lineHeight:1}},result.overall_rating),
+            React.createElement("div",{style:{color:"#333",fontSize:7,fontFamily:FB}},"/10")
+          )
+        ),
+        result.bingos?.map((b,i)=>React.createElement("div",{key:i,style:{display:"flex",gap:6,padding:"4px 0",borderBottom:i<result.bingos.length-1?"1px solid rgba(255,255,255,0.03)":"none"}},
+          React.createElement("div",{style:{minWidth:18,height:18,borderRadius:3,background:SC(b.score)+"12",border:"1px solid "+SC(b.score)+"30",display:"flex",alignItems:"center",justifyContent:"center",color:SC(b.score),fontFamily:F,fontSize:8,flexShrink:0}},b.score),
+          React.createElement("div",null,
+            React.createElement("div",{style:{color:"#ddd",fontFamily:FB,fontSize:10}},b.text),
+            React.createElement("div",{style:{color:"#444",fontFamily:FB,fontSize:8,marginTop:1,fontStyle:"italic"}},b.comment)
+          )
+        ))
+      ),
+      result?.error&&React.createElement("div",{style:{color:"#FF3366",fontFamily:FB,fontSize:11,textAlign:"center",padding:12}},result.error),
+      React.createElement("button",{onClick:onClose,style:{marginTop:11,width:"100%",padding:6,background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:5,color:"#2a2a3a",fontFamily:FB,cursor:"pointer",fontSize:8,letterSpacing:"1px"}},"CLOSE")
+    )
+  );
+}
+
+function StatsPanel({users}){
+  const all=users.flatMap(u=>u.bingos);
+  const lo=all.map(b=>b.toLowerCase());
+  const dRanks=["verstappen","hamilton","norris","leclerc","piastri","russell","antonelli","alonso","sainz","hadjar","lawson","bottas","perez","colapinto"]
+    .map(d=>({d,c:lo.filter(b=>b.includes(d)).length})).filter(x=>x.c>0).sort((a,b)=>b.c-a.c);
+  const tRanks=TEAMS.map(t=>({t:t.n,c:lo.filter(b=>b.includes(t.n.toLowerCase())).length})).filter(x=>x.c>0).sort((a,b)=>b.c-a.c);
+  const cats=[
+    {icon:"🌧️",label:"Rain/Weather",  col:"#00E5FF",n:lo.filter(b=>b.includes("rain")||b.includes("wet")||b.includes("weather")).length},
+    {icon:"💥",label:"Crash/DNF",      col:"#FF3366",n:lo.filter(b=>b.includes("crash")||b.includes("retire")||b.includes("dnf")).length},
+    {icon:"🔧",label:"Pitstop Drama",  col:"#FF8800",n:lo.filter(b=>b.includes("pit")||b.includes("strategy")||b.includes("tyre")||b.includes("tire")).length},
+    {icon:"🎭",label:"Scandal/Drama",  col:"#CC44FF",n:lo.filter(b=>b.includes("scandal")||b.includes("drama")||b.includes("steward")||b.includes("penalty")).length},
+    {icon:"🚗",label:"Safety Car",     col:"#FFD700",n:lo.filter(b=>b.includes("safety car")||b.includes("vsc")).length},
+    {icon:"🔥",label:"Wildcards 5★",  col:"#FF3366",n:users.flatMap(u=>u.bingos.map((b,i)=>(u.aiScores?.[i]??quickScore(b))===5?1:0)).reduce((a,c)=>a+c,0)},
+    {icon:"🆕",label:"Debut Bingos",   col:"#88FF88",n:lo.filter(b=>b.includes("cadillac")||b.includes("audi")||b.includes("debut")||b.includes("bottas")||b.includes("bortoleto")).length},
+    {icon:"⚡",label:"Active Aero",    col:"#FF8000",n:lo.filter(b=>b.includes("active aero")||b.includes("aero fail")).length},
+    {icon:"📻",label:"Radio Moments",  col:"#9966FF",n:lo.filter(b=>b.includes("radio")||b.includes("bleep")||b.includes("complain")||b.includes("blames")).length},
+    {icon:"🏁",label:"Race Wins",      col:"#27F4D2",n:lo.filter(b=>b.includes("wins")||b.includes("victory")).length},
+    {icon:"🏆",label:"Championship",   col:"#FFD700",n:lo.filter(b=>b.includes("champion")||b.includes("title")).length},
+    {icon:"🤝",label:"Team Orders",    col:"#88AAFF",n:lo.filter(b=>b.includes("team order")||b.includes("swap")||b.includes("hold position")).length},
+  ];
+  const top3=[...users].sort((a,b)=>{
+    const sa=a.bingos.reduce((s,x,i)=>s+(a.aiScores?.[i]??quickScore(x)),0);
+    const sb=b.bingos.reduce((s,x,i)=>s+(b.aiScores?.[i]??quickScore(x)),0);
+    return sb-sa;
+  }).slice(0,3);
+  return React.createElement("div",{style:{background:"linear-gradient(135deg,rgba(255,24,1,0.025),rgba(255,136,0,0.015))",border:"1px solid rgba(255,24,1,0.08)",borderRadius:10,padding:14,marginTop:16}},
+    React.createElement("div",{style:{fontFamily:F,fontSize:12,color:"#FF1801",letterSpacing:"2px",textTransform:"uppercase",marginBottom:12,borderBottom:"1px solid rgba(255,255,255,0.035)",paddingBottom:7}},"📊 BINGO INTELLIGENCE REPORT"),
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:11}},
+      React.createElement("div",{style:{padding:"8px 10px",background:"rgba(255,255,255,0.015)",borderRadius:5,border:"1px solid rgba(255,255,255,0.035)"}},
+        React.createElement("div",{style:{color:"#333",fontFamily:FB,fontSize:6,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:4}},"🏎️ MOST PREDICTED DRIVER"),
+        dRanks.slice(0,3).map(({d,c},i)=>React.createElement("div",{key:d,style:{display:"flex",justifyContent:"space-between",padding:"1px 0"}},
+          React.createElement("span",{style:{color:i===0?"#fff":"#444",fontFamily:FB,fontSize:i===0?12:10,textTransform:"capitalize",fontWeight:i===0?700:400}},d),
+          React.createElement("span",{style:{color:i===0?"#FF1801":"#222",fontFamily:F,fontSize:i===0?11:8}},c)
+        )),
+        dRanks.length===0&&React.createElement("div",{style:{color:"#1a1a2a",fontFamily:FB,fontSize:9}},"No data yet")
+      ),
+      React.createElement("div",{style:{padding:"8px 10px",background:"rgba(255,255,255,0.015)",borderRadius:5,border:"1px solid rgba(255,255,255,0.035)"}},
+        React.createElement("div",{style:{color:"#333",fontFamily:FB,fontSize:6,letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:4}},"🏁 MOST PREDICTED TEAM"),
+        tRanks.slice(0,3).map(({t,c},i)=>{
+          const col=TEAMS.find(x=>x.n===t)?.c||"#aaa";
+          return React.createElement("div",{key:t,style:{display:"flex",justifyContent:"space-between",padding:"1px 0"}},
+            React.createElement("span",{style:{color:i===0?col:"#333",fontFamily:FB,fontSize:i===0?12:10,fontWeight:i===0?700:400}},t),
+            React.createElement("span",{style:{color:i===0?col:"#1a1a2a",fontFamily:F,fontSize:i===0?11:8}},c)
+          );
+        }),
+        tRanks.length===0&&React.createElement("div",{style:{color:"#1a1a2a",fontFamily:FB,fontSize:9}},"No data yet")
+      )
+    ),
+    React.createElement("div",{style:{fontFamily:FB,fontSize:6,color:"#222",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}},"BINGO CATEGORIES"),
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:4,marginBottom:12}},
+      cats.map(c=>React.createElement("div",{key:c.label,style:{padding:"6px 8px",background:c.col+"07",border:"1px solid "+c.col+"18",borderRadius:6}},
+        React.createElement("div",{style:{fontSize:14,marginBottom:2}},c.icon),
+        React.createElement("div",{style:{color:c.col,fontFamily:F,fontSize:15,lineHeight:1}},c.n),
+        React.createElement("div",{style:{color:"#333",fontFamily:FB,fontSize:7,marginTop:1,lineHeight:1.2}},c.label)
+      ))
+    ),
+    React.createElement("div",{style:{fontFamily:FB,fontSize:6,color:"#222",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}},"🔥 TOP 3 POTENTIAL"),
+    top3.map((u,i)=>{
+      const tot=u.bingos.reduce((s,b,bi)=>s+(u.aiScores?.[bi]??quickScore(b)),0);
+      return React.createElement("div",{key:u.id,style:{display:"flex",alignItems:"center",gap:7,padding:"5px 0",borderBottom:i<2?"1px solid rgba(255,255,255,0.025)":"none"}},
+        React.createElement("span",{style:{fontSize:13}},["🥇","🥈","🥉"][i]),
+        React.createElement("span",{style:{fontSize:12}},u.icon),
+        React.createElement("div",{style:{flex:1}},
+          React.createElement("span",{style:{color:"#ccc",fontFamily:FB,fontSize:11,fontWeight:600}},u.name),
+          u.strategy&&React.createElement("span",{style:{color:"#3a3a4a",fontFamily:FB,fontSize:7,marginLeft:6}},u.strategy),
+          u.insight&&React.createElement("div",{style:{color:"#252535",fontFamily:FB,fontSize:7,fontStyle:"italic"}},u.insight)
+        ),
+        React.createElement("span",{style:{color:"#FF1801",fontFamily:F,fontSize:12}},tot,React.createElement("span",{style:{color:"#151522",fontSize:7}}," pts"))
+      );
+    }),
+    top3.length===0&&React.createElement("div",{style:{color:"#151525",fontFamily:FB,fontSize:10,textAlign:"center",padding:"8px 0"}},"No entries yet")
+  );
+}
+
+function ScoringExplainer(){
+  const[open,setOpen]=useState(false);
+  return React.createElement("div",{style:{maxWidth:1100,margin:"0 auto",padding:"4px 24px"}},
+    React.createElement("div",{style:{background:"rgba(255,255,255,0.012)",border:"1px solid rgba(255,255,255,0.035)",borderRadius:7,overflow:"hidden"}},
+      React.createElement("button",{onClick:()=>setOpen(o=>!o),style:{width:"100%",padding:"7px 12px",background:"none",border:"none",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+        React.createElement("span",{style:{color:"#333",fontFamily:FB,fontSize:8,letterSpacing:"2px",textTransform:"uppercase"}},"⚙️ HOW DOES SCORING WORK?"),
+        React.createElement("span",{style:{color:"#222",fontFamily:FB,fontSize:9}},open?"▲":"▼")
+      ),
+      open&&React.createElement("div",{style:{padding:"0 12px 10px",borderTop:"1px solid rgba(255,255,255,0.025)"}},
+        React.createElement("p",{style:{color:"#444",fontFamily:FB,fontSize:9,lineHeight:1.6,marginTop:7}},
+          React.createElement("span",{style:{color:"#FF1801",fontWeight:700}},"How it works: "),
+          "When you submit bingos, Claude instantly analyses each one against real 2026 pre-season intelligence — Bahrain testing lap times, Barcelona private test results, driver news, team technical data and historical F1 patterns. A 'Cadillac scores points on debut' scores 5★ because Cadillac has zero data and historically new teams take seasons to score points. A 'Mercedes win a race' scores 1★ because the W17 was fastest in Bahrain testing — predictable and likely. After each race, Claude uses web search to verify ACTUAL results and re-scores: happened = full points, didn't happen = 0. Season bingos that don't apply to the current race are held until relevant."
+        ),
+        React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginTop:7}},
+          [5,4,3,2,1].map(s=>React.createElement("span",{key:s,style:{color:SC(s),fontFamily:FB,fontSize:8,fontWeight:700,padding:"1px 6px",background:SC(s)+"0c",borderRadius:3,border:"1px solid "+SC(s)+"20"}},s+"★ "+SL(s)))
+        )
+      )
+    )
+  );
+}
+
+function App(){
+  const[users,setUsers]=useState([]);
+  const[showModal,setShowModal]=useState(false);
+  const[selRace,setSelRace]=useState(null);
+  const[news,setNews]=useState(FALLBACK_NEWS);
+  const[newsLoading,setNewsLoading]=useState(false);
+  const[lastUpdate,setLastUpdate]=useState(null);
+  const[deepUser,setDeepUser]=useState(null);
+
+  const sorted=[...users].sort((a,b)=>{
+    const sa=a.bingos.reduce((s,x,i)=>s+(a.aiScores?.[i]??quickScore(x)),0);
+    const sb=b.bingos.reduce((s,x,i)=>s+(b.aiScores?.[i]??quickScore(x)),0);
+    return sb-sa;
+  });
+
+  const fetchNews=useCallback(async()=>{
+    setNewsLoading(true);
+    const prompt=`You are a top F1 journalist. It's March 2026, Australian GP weekend (March 6-8). Generate 14 sharp paddock news items. 2026 lineup: Norris/Piastri (McLaren), Russell/Antonelli (Mercedes), Verstappen/Hadjar (Red Bull), Hamilton/Leclerc (Ferrari), Sainz/Albon (Williams), Alonso/Stroll (Aston Martin), Lawson/Lindblad (Racing Bulls), Bearman/Ocon (Haas), Gasly/Colapinto (Alpine), Hulkenberg/Bortoleto (Audi), Bottas/Perez (Cadillac). Mix: session times, driver quotes, technical drama, debut tension, weather, controversies. JSON array only: [{"team":"McLaren","text":"news max 12 words","icon":"🍊","src":"FP1"}] src options: FP1 FP2 FP3 Qualifying Quote Technical Drama Debut Paddock Weather`;
+    try{
+      const txt=await callClaude(prompt,true);
+      const s=txt.indexOf("["),e=txt.lastIndexOf("]");
+      if(s!==-1&&e!==-1){setNews(JSON.parse(txt.slice(s,e+1)));setLastUpdate(new Date());}
+    }catch{}
+    setNewsLoading(false);
+  },[]);
+
+  useEffect(()=>{
+    fetchNews();
+    const id=setInterval(fetchNews,3600000);
+    return()=>clearInterval(id);
+  },[fetchNews]);
+
+  return React.createElement("div",{style:{minHeight:"100vh",background:"linear-gradient(180deg,#03030c 0%,#050210 100%)",fontFamily:FB}},
+    React.createElement(NewsTicker,{items:news}),
+    React.createElement(TeamBar),
+
+    // HEADER
+    React.createElement("div",{style:{background:"linear-gradient(135deg,#07000f,#020c18)",borderBottom:"3px solid #FF1801",padding:"15px 24px",position:"relative",overflow:"hidden"}},
+      React.createElement("div",{style:{position:"absolute",top:-50,right:-30,width:160,height:160,borderRadius:"50%",background:"rgba(255,24,1,0.035)",pointerEvents:"none"}}),
+      React.createElement("div",{style:{maxWidth:1100,margin:"0 auto"}},
+        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}},
+          React.createElement("div",null,
+            React.createElement("div",{style:{fontFamily:F,fontSize:42,color:"#FF1801",lineHeight:0.88,textShadow:"0 0 35px rgba(255,24,1,0.2)"}},"🏁 F1 BINGO"),
+            React.createElement("div",{style:{fontFamily:FB,color:"#181828",fontSize:8,letterSpacing:"4px",textTransform:"uppercase",marginTop:6}},"2026 FORMULA 1 WORLD CHAMPIONSHIP"),
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginTop:7,flexWrap:"wrap"}},
+              React.createElement("div",{className:"pulse-dot",style:{width:5,height:5,borderRadius:"50%",background:"#FF1801"}}),
+              React.createElement("span",{style:{color:"#FF1801",fontFamily:FB,fontSize:8,letterSpacing:"1.5px",textTransform:"uppercase"}},"R1 AUSTRALIA · MAR 6–8 · ALBERT PARK"),
+              React.createElement("span",{style:{color:"#151525",fontFamily:FB,fontSize:7}},"11 TEAMS · 22 DRIVERS · NEW ERA")
+            )
+          ),
+          React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}},
+            React.createElement("div",{style:{padding:"5px 10px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.045)",borderRadius:6,textAlign:"center"}},
+              React.createElement("div",{style:{color:"#FF1801",fontFamily:F,fontSize:18}},users.length),
+              React.createElement("div",{style:{color:"#151525",fontFamily:FB,fontSize:6,letterSpacing:"1.5px",textTransform:"uppercase"}},"ENTRIES")
+            ),
+            React.createElement("button",{
+              onClick:()=>setShowModal(true),
+              style:{padding:"8px 17px",background:"linear-gradient(135deg,#FF1801,#FF5500)",border:"none",borderRadius:8,color:"#fff",fontFamily:F,fontSize:11,letterSpacing:"1px",textTransform:"uppercase",cursor:"pointer",boxShadow:"0 4px 16px rgba(255,24,1,0.3)",transition:"transform 0.15s"},
+              onMouseEnter:e=>e.currentTarget.style.transform="translateY(-2px)",
+              onMouseLeave:e=>e.currentTarget.style.transform="none"},
+              "+ REGISTER BINGOS")
+          )
+        ),
+        React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}},
+          React.createElement(Countdown,{target:SEASON_DEADLINE,   label:"SEASON BINGOS CLOSE (Cairo 10AM Fri)",col:"#FF1801"}),
+          React.createElement(Countdown,{target:AUS_BINGO_DEADLINE,label:"AUS BINGOS CLOSE (2AM Cairo Sun)",      col:"#FF8800"}),
+          React.createElement(Countdown,{target:AUS_RACE_START,    label:"RACE STARTS",                          col:"#FFD700"})
+        )
+      )
+    ),
+
+    // SCORING BAR
+    React.createElement("div",{style:{background:"rgba(0,0,0,0.5)",borderBottom:"1px solid rgba(255,255,255,0.02)",padding:"4px 24px"}},
+      React.createElement("div",{style:{maxWidth:1100,margin:"0 auto",display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}},
+        React.createElement("span",{style:{color:"#151525",fontFamily:FB,fontSize:7,letterSpacing:"2px",textTransform:"uppercase"}},"AI SCORING:"),
+        ...[5,4,3,2,1].map(s=>React.createElement("span",{key:s,style:{color:SC(s),fontFamily:FB,fontSize:8,fontWeight:700,padding:"1px 5px",background:SC(s)+"0b",borderRadius:3,border:"1px solid "+SC(s)+"1e"}},s+"★ "+SL(s))),
+        React.createElement("span",{style:{color:"#151525",fontFamily:FB,fontSize:7,marginLeft:"auto"}},
+          newsLoading?"🔄 UPDATING...":lastUpdate?"NEWS "+lastUpdate.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+" · 1hr refresh":"")
+      )
+    ),
+
+    React.createElement(RaceCalendar,{selected:selRace,onSelect:r=>setSelRace(s=>s?.r===r?.r?null:r)}),
+    selRace&&React.createElement(RacePanel,{race:selRace,onClose:()=>setSelRace(null)}),
+    React.createElement(ScoringExplainer),
+
+    // LEADERBOARD
+    React.createElement("div",{style:{maxWidth:1100,margin:"0 auto",padding:"14px 24px 0"}},
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:11}},
+        React.createElement("span",{style:{fontFamily:F,color:"#fff",fontSize:11,letterSpacing:"1px",textTransform:"uppercase"}},"🏆 SEASON LEADERBOARD"),
+        React.createElement("span",{style:{color:"#131323",fontFamily:FB,fontSize:8}},"— hover to reveal bingos · AI scores on submit")
+      ),
+      users.length===0&&React.createElement("div",{style:{textAlign:"center",padding:"32px 0",border:"1px solid rgba(255,255,255,0.035)",borderRadius:10,background:"rgba(255,255,255,0.008)"}},
+        React.createElement("div",{style:{fontSize:32}},"🏁"),
+        React.createElement("div",{style:{color:"#2a2a3a",fontFamily:FB,fontSize:12,marginTop:9}},"No season bingos yet — be the first."),
+        React.createElement("div",{style:{color:"#151525",fontFamily:FB,fontSize:9,marginTop:4}},"Register before Friday 10AM Cairo time."),
+        React.createElement("button",{onClick:()=>setShowModal(true),style:{marginTop:12,padding:"8px 20px",background:"linear-gradient(135deg,#FF1801,#FF5500)",border:"none",borderRadius:7,color:"#fff",fontFamily:F,fontSize:10,cursor:"pointer",letterSpacing:"1px"}},"REGISTER NOW")
+      ),
+      React.createElement("div",{className:"fade-in",style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(265px,1fr))",gap:9}},
+        sorted.map((user,i)=>React.createElement(UserCard,{key:user.id,user,rank:i,onEval:setDeepUser}))
+      ),
+      users.length>0&&React.createElement(StatsPanel,{users}),
+      React.createElement("div",{style:{height:32}})
+    ),
+
+    showModal&&React.createElement(SeasonModal,{onClose:()=>setShowModal(false),onRegister:u=>setUsers(p=>[...p,u])}),
+    deepUser&&React.createElement(DeepEvalModal,{user:deepUser,onClose:()=>setDeepUser(null)})
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
